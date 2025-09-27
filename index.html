@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Ulang Tahun — Custom Card</title>
+  <style>
+    :root{--bg:#0f1724;--card:#0b1220;--accent:#ff7aa2;--muted:#9aa4b2;--glass:rgba(255,255,255,0.04)}
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial}
+    body{background:linear-gradient(180deg,#071029 0%, #081027 50%, #051118 100%);color:#e6eef8;display:flex;align-items:center;justify-content:center;padding:18px}
+    .app{width:100%;max-width:960px;background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);border-radius:14px;padding:16px;box-shadow:0 6px 30px rgba(2,6,23,0.7)}
+    header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+    header h1{font-size:18px;margin:0}
+    .tabs{display:flex;gap:8px;margin-bottom:12px}
+    .tab{padding:8px 12px;border-radius:10px;background:var(--glass);cursor:pointer;font-weight:600;color:var(--muted)}
+    .tab.active{background:linear-gradient(90deg,var(--accent),#6ec9ff);color:#071022}
+
+    .grid{display:grid;grid-template-columns:1fr 340px;gap:12px}
+    .panel{background:rgba(255,255,255,0.02);padding:12px;border-radius:12px}
+    label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+    input[type="text"],input[type="number"],textarea{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
+    textarea{min-height:84px;resize:vertical}
+    .btn{display:inline-block;padding:10px 14px;border-radius:10px;background:linear-gradient(90deg,var(--accent),#6ec9ff);color:#071022;font-weight:700;border:none;cursor:pointer}
+    .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
+    .preview{display:flex;flex-direction:column;align-items:center;gap:10px}
+    .photo-preview{width:320px;height:320px;border-radius:12px;background:linear-gradient(180deg,#0b2233,#081526);display:flex;align-items:center;justify-content:center;overflow:hidden}
+    .photo-preview img{width:100%;height:100%;object-fit:cover}
+    .meta-preview{width:100%;text-align:center}
+
+    .share-box{display:flex;gap:8px;align-items:center;margin-top:8px}
+    .link-input{flex:1;padding:8px;border-radius:8px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.03);color:inherit}
+
+    /* View page styles */
+    .view-stage{min-height:420px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px}
+    .balloons{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;max-width:760px}
+    .balloon{width:72px;height:98px;border-radius:40px;background:linear-gradient(180deg,#ff9ec9,#ff5ea3);display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer;user-select:none;box-shadow:0 6px 18px rgba(0,0,0,0.5);font-size:26px}
+    .balloon.popped{transform:scale(0.2) rotate(-30deg);opacity:0;transition:transform .35s ease,opacity .35s ease}
+    .balloon::after{content:'';position:absolute;left:50%;bottom:-18px;width:2px;height:18px;background:rgba(255,255,255,0.06);transform:translateX(-50%)}
+
+    .confetti-canvas{position:fixed;left:0;top:0;right:0;bottom:0;pointer-events:none}
+
+    .photo-card{width:320px;height:320px;border-radius:12px;overflow:hidden;border:6px solid rgba(255,255,255,0.03);display:flex;align-items:center;justify-content:center;cursor:pointer}
+    .info-overlay{position:relative;min-height:120px;display:flex;align-items:center;justify-content:center}
+    .card-step{display:none}
+    .card-step.active{display:block}
+
+    .cards{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+    .card{width:160px;height:120px;border-radius:10px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);display:flex;align-items:center;justify-content:center;cursor:pointer;border:1px solid rgba(255,255,255,0.03);text-align:center;padding:8px}
+
+    footer{display:flex;justify-content:space-between;align-items:center;margin-top:12px;color:var(--muted);font-size:13px}
+
+    /* modal */
+    .modal-backdrop{position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(2,6,23,0.7);display:none;align-items:center;justify-content:center}
+    .modal{background:#071027;padding:18px;border-radius:12px;max-width:540px;width:90%;color:#fff}
+
+    @media(max-width:860px){
+      .grid{grid-template-columns:1fr}
+      .photo-preview{width:100%;height:220px}
+      .photo-card{width:260px;height:260px}
+      .balloon{width:54px;height:74px;font-size:20px}
+      .btn{width:100%}
+      .share-box{flex-direction:column;align-items:stretch}
+    }
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <header>
+      <div style="width:44px;height:44px;border-radius:10px;background:linear-gradient(90deg,#ff7aa2,#6ec9ff);display:flex;align-items:center;justify-content:center;color:#071022;font-weight:800">BD</div>
+      <div>
+        <h1>Buat Kartu Ulang Tahun (Mobile-friendly)</h1>
+        <div style="color:var(--muted);font-size:13px">Edit (untukmu) & View (teman). Link akan berisi data sehingga bisa dibuka di HP lain.</div>
+      </div>
+    </header>
+
+    <div class="tabs" id="tabs">
+      <div class="tab active" data-route="edit">Edit</div>
+      <div class="tab" data-route="about">Cara Pakai</div>
+    </div>
+
+    <main>
+      <div id="page-edit" class="grid">
+        <div class="panel">
+          <h3>Form Custom</h3>
+          <p style="color:var(--muted);margin-top:0">Pilih foto, nama, umur, ucapan. Save akan menghasilkan link yang bisa dibuka di HP teman (tanpa server).</p>
+
+          <div style="display:flex;gap:8px;align-items:center">
+            <div style="flex:1">
+              <label>Foto (dari galeri)</label>
+              <input id="photo-input" type="file" accept="image/*" />
+            </div>
+            <div style="width:120px">
+              <label>Umur</label>
+              <input id="age-input" type="number" min="0" value="18" />
+            </div>
+          </div>
+
+          <label>Nama</label>
+          <input id="name-input" type="text" placeholder="Nama teman" />
+
+          <label>Ucapan</label>
+          <textarea id="message-input" placeholder='Contoh: "Selamat ulang tahun! Semoga selalu bahagia."'></textarea>
+
+          <div style="display:flex;gap:8px;align-items:center;margin-top:10px">
+            <button id="save-btn" class="btn">Save & Buat Link</button>
+            <button id="clear-btn" class="btn ghost">Hapus Form</button>
+          </div>
+
+          <div class="share-box" style="margin-top:12px">
+            <input id="share-link" class="link-input" readonly placeholder="Link akan muncul di sini setelah Save" />
+            <div style="display:flex;gap:8px">
+              <button id="copy-btn" class="btn ghost">Copy</button>
+              <button id="native-share" class="btn ghost">Share</button>
+            </div>
+          </div>
+
+          <div style="margin-top:12px;color:var(--muted);font-size:13px">Catatan: foto akan di-resize & dikompres agar link tetap dapat dibagikan. Jika foto sangat besar, beberapa browser mungkin membatasi panjang URL.</div>
+        </div>
+
+        <aside class="panel">
+          <h3>Preview</h3>
+          <div class="preview">
+            <div class="photo-preview" id="preview-photo">
+              <div style="text-align:center;color:var(--muted);padding:8px">Tidak ada foto</div>
+            </div>
+            <div class="meta-preview">
+              <div style="font-size:18px;font-weight:700" id="preview-name">Nama Teman</div>
+              <div style="color:var(--muted)" id="preview-age">Umur: 18</div>
+              <div style="margin-top:8px;color:var(--muted)" id="preview-message">Ucapan singkat akan tampil di sini.</div>
+            </div>
+          </div>
+
+          <div style="margin-top:12px">
+            <h4 style="margin:0 0 8px 0">Instruksi singkat</h4>
+            <ol style="color:var(--muted);padding-left:18px">
+              <li>Pilih foto, isi nama, umur, ucapan.</li>
+              <li>Tekan <b>Save & Buat Link</b> untuk menyimpan dan membuat link shareable.</li>
+              <li>Bagikan link ke teman — link akan memuat data kartu sehingga bisa dibuka di HP teman tanpa server.</li>
+            </ol>
+          </div>
+        </aside>
+      </div>
+
+      <div id="page-view" class="panel" style="margin-top:12px;display:none">
+        <div class="view-stage" id="view-stage">
+          <div class="card-step active" id="step-balloons">
+            <h2 style="margin:6px 0">Selamat ulang tahun!</h2>
+            <div style="color:var(--muted);margin-bottom:6px">Tekan semua balon sebanyak umur untuk lanjut.</div>
+            <div class="balloons" id="balloons"></div>
+          </div>
+
+          <div class="card-step" id="step-photo">
+            <h2 style="margin:6px 0">Klik fotonya</h2>
+            <div class="photo-card" id="view-photo"><img id="view-photo-img" src="" alt="photo" style="width:100%;height:100%;object-fit:cover"/></div>
+            <div id="photo-hint" style="color:var(--muted);margin-top:8px">Klik foto untuk melihat umur dan ucapan.</div>
+          </div>
+
+          <div class="card-step" id="step-emoji">
+            <h2 style="margin:6px 0">Klik emoji</h2>
+            <div style="font-size:72px;cursor:pointer" id="emoji">🙂</div>
+            <div style="color:var(--muted);margin-top:8px">Klik emoji untuk lanjut ke minigame.</div>
+          </div>
+
+          <div class="card-step" id="step-game">
+            <h2 style="margin:6px 0">Pilih kartu doa</h2>
+            <div style="color:var(--muted);margin-bottom:6px">Pilih salah satu kartu untuk menerima doa.</div>
+            <div class="cards" id="cards">
+              <div class="card" data-index="1">Kartu 1<br><small>Semoga tambah pintar</small></div>
+              <div class="card" data-index="2">Kartu 2<br><small>Semoga tambah kaya</small></div>
+              <div class="card" data-index="3">Kartu 3<br><small>Semoga tambah rajin</small></div>
+            </div>
+          </div>
+
+          <div class="card-step" id="step-result">
+            <h2 id="result-title">Doa</h2>
+            <div id="result-text" style="color:var(--muted);margin-top:8px"></div>
+            <div style="margin-top:16px"><button id="done-btn" class="btn">Bye bye</button></div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <footer>
+      <div>Made with ❤️ — Static HTML (mobile-friendly)</div>
+      <div id="version" style="color:var(--muted)"></div>
+    </footer>
+
+    <canvas id="confetti" class="confetti-canvas"></canvas>
+
+    <!-- Inline modal for mobile-safe overlay -->
+    <div id="modal" class="modal-backdrop" role="dialog" aria-modal="true">
+      <div class="modal" id="modal-content"></div>
+    </div>
+  </div>
+
+  <script>
+    // --- Utilities ---
+    const $ = (s) => document.querySelector(s)
+    const $$ = (s) => Array.from(document.querySelectorAll(s))
+
+    const version = '1.1-mobile'
+    $('#version').textContent = version
+
+    // Routing: supports portable data encoded in the hash
+    function parseHash(){
+      const h = location.hash || '#/edit'
+      if(h.startsWith('#/card/')){
+        const payload = h.slice(7) // after '#/card/'
+        // try to decode payload as base64 JSON; fallback to id-based localStorage
+        try{
+          const json = decodeBase64(payload)
+          const obj = JSON.parse(json)
+          openCardView({id: payload, ...obj})
+        }catch(e){
+          // fallback: treat payload as id stored in localStorage
+          openCardViewById(payload)
+        }
+      } else if(h === '#/about'){
+        $('#page-view').style.display = 'none'
+        $('#page-edit').style.display = 'block'
+      } else {
+        $('#page-view').style.display = 'none'
+        $('#page-edit').style.display = 'block'
+        activateTab('edit')
+      }
+    }
+
+    window.addEventListener('hashchange', parseHash)
+
+    // Tabs
+    $$('#tabs .tab').forEach(t=>t.addEventListener('click',()=>{
+      const r = t.dataset.route
+      activateTab(r)
+      if(r==='about') location.hash = '#/about'
+      else location.hash = '#/edit'
+    }))
+    function activateTab(name){
+      $$('#tabs .tab').forEach(t=>t.classList.toggle('active',t.dataset.route===name))
+    }
+
+    // Form elements
+    const photoInput = $('#photo-input')
+    const nameInput = $('#name-input')
+    const ageInput = $('#age-input')
+    const messageInput = $('#message-input')
+    const saveBtn = $('#save-btn')
+    const clearBtn = $('#clear-btn')
+    const shareLink = $('#share-link')
+    const copyBtn = $('#copy-btn')
+    const nativeShareBtn = $('#native-share')
+
+    const previewPhoto = $('#preview-photo')
+    const previewName = $('#preview-name')
+    const previewAge = $('#preview-age')
+    const previewMessage = $('#preview-message')
+
+    let currentPhotoData = null
+
+    // Resize & compress image to keep URL length reasonable.
+    function resizeImageFile(file, maxW=1000, quality=0.7){
+      return new Promise((resolve,reject)=>{
+        if(!file) return resolve(null)
+        const img = new Image()
+        const reader = new FileReader()
+        reader.onload = ()=>{ img.src = reader.result }
+        reader.onerror = reject
+        img.onload = ()=>{
+          const w = img.width, h = img.height
+          let nw = w, nh = h
+          if(w>maxW){ nw = maxW; nh = Math.round(h * (maxW / w)) }
+          const c = document.createElement('canvas'); c.width = nw; c.height = nh
+          const ctx = c.getContext('2d'); ctx.drawImage(img,0,0,nw,nh)
+          c.toDataURL('image/jpeg', quality, (err)=>{})
+          const data = c.toDataURL('image/jpeg', quality)
+          resolve(data)
+        }
+        img.onerror = reject
+        reader.readAsDataURL(file)
+      })
+    }
+
+    photoInput.addEventListener('change', async e=>{
+      const f = e.target.files && e.target.files[0]
+      if(!f) return
+      // resize & compress
+      try{
+        const compressed = await resizeImageFile(f, 900, 0.72)
+        currentPhotoData = compressed
+        updatePreview()
+      }catch(err){
+        console.warn('resize failed',err)
+        const reader = new FileReader(); reader.onload = ()=>{ currentPhotoData = reader.result; updatePreview() }; reader.readAsDataURL(f)
+      }
+    })
+
+    nameInput.addEventListener('input',updatePreview)
+    ageInput.addEventListener('input',updatePreview)
+    messageInput.addEventListener('input',updatePreview)
+
+    function updatePreview(){
+      previewName.textContent = nameInput.value || 'Nama Teman'
+      previewAge.textContent = 'Umur: ' + (ageInput.value || '18')
+      previewMessage.textContent = messageInput.value || 'Ucapan singkat akan tampil di sini.'
+      if(currentPhotoData){
+        previewPhoto.innerHTML = '<img src="'+currentPhotoData+'" alt="preview" />'
+      } else {
+        previewPhoto.innerHTML = '<div style="text-align:center;color:var(--muted);padding:8px">Tidak ada foto</div>'
+      }
+    }
+
+    clearBtn.addEventListener('click',()=>{
+      nameInput.value = ''
+      ageInput.value = 18
+      messageInput.value = ''
+      photoInput.value = null
+      currentPhotoData = null
+      updatePreview()
+      shareLink.value = ''
+    })
+
+    // Helper: base64 encode/decode utf8-safe
+    function encodeBase64(s){ return btoa(unescape(encodeURIComponent(s))) }
+    function decodeBase64(s){ return decodeURIComponent(escape(atob(s))) }
+
+    // Save: create portable link by embedding JSON into hash (base64). Also store in localStorage as backup.
+    saveBtn.addEventListener('click', async ()=>{
+      const name = nameInput.value.trim() || 'Teman'
+      const age = Math.max(0, parseInt(ageInput.value) || 18)
+      const message = messageInput.value.trim() || 'Selamat ulang tahun!'
+      let photo = currentPhotoData || ''
+
+      // Already compressed in change handler. If not, leave empty.
+
+      const payload = {name, age, message, photo}
+      const json = JSON.stringify(payload)
+      const encoded = encodeBase64(json)
+
+      // Save to localStorage as fallback (and for quick edit)
+      try{
+        const cards = JSON.parse(localStorage.getItem('birthday_cards')||'{}')
+        const id = Date.now().toString(36)
+        cards[id] = {id, ...payload, created:Date.now()}
+        localStorage.setItem('birthday_cards', JSON.stringify(cards))
+      }catch(e){console.warn('localStorage save failed',e)}
+
+      const link = location.origin + location.pathname + '#/card/' + encoded
+      shareLink.value = link
+
+      // copy to clipboard if allowed
+      try{ await navigator.clipboard.writeText(link); alert('Link dibuat dan disalin ke clipboard!') }catch(e){ alert('Link dibuat — salin manual jika clipboard tidak tersedia.') }
+    })
+
+    copyBtn.addEventListener('click',()=>{
+      if(!shareLink.value) return
+      navigator.clipboard.writeText(shareLink.value).then(()=>alert('Link disalin!')).catch(()=>alert('Gagal menyalin — lakukan manual.'))
+    })
+
+    nativeShareBtn.addEventListener('click', async ()=>{
+      const link = shareLink.value
+      if(!link){ alert('Belum ada link. Tekan Save & Buat Link dulu.'); return }
+      if(navigator.share){
+        try{ await navigator.share({title:'Kartu Ulang Tahun', text:'Cek kartu ulang tahunku', url: link}) }catch(e){}
+      } else {
+        // fallback
+        navigator.clipboard.writeText(link).then(()=>alert('Browser tidak mendukung native share — link disalin.'))
+      }
+    })
+
+    // VIEW logic
+    const balloonsContainer = $('#balloons')
+    const confettiCanvas = $('#confetti')
+    const viewPhotoImg = $('#view-photo-img')
+    const viewPhoto = $('#view-photo')
+    const steps = ['step-balloons','step-photo','step-emoji','step-game','step-result']
+
+    let viewCard = null
+    let poppedCount = 0
+
+    function openCardViewById(id){
+      const cards = JSON.parse(localStorage.getItem('birthday_cards')||'{}')
+      const card = cards[id]
+      if(!card){ alert('Kartu tidak ditemukan di penyimpanan lokal. Pastikan link benar atau gunakan opsi Save untuk membuat link portable.') ; location.hash = '#/edit'; return }
+      openCardView(card)
+    }
+
+    function openCardView(card){
+      viewCard = card
+      $('#page-edit').style.display = 'none'
+      $('#page-view').style.display = 'block'
+      activateTab(null)
+
+      steps.forEach(s=>$('#'+s).classList.remove('active'))
+      $('#step-balloons').classList.add('active')
+
+      balloonsContainer.innerHTML = ''
+      poppedCount = 0
+      const n = Math.max(0, Math.min(80, parseInt(card.age) || 0))
+      if(n===0){
+        balloonsContainer.innerHTML = '<div style="color:var(--muted)">(umur 0 — tidak ada balon)</div>'
+      } else {
+        for(let i=0;i<n;i++){
+          const b = document.createElement('div')
+          b.className = 'balloon'
+          b.textContent = '🎈'
+          b.style.transform = 'translateY('+ (Math.random()*10 -5) +'px)'
+          b.addEventListener('click', ()=>popBalloon(b))
+          balloonsContainer.appendChild(b)
+        }
+      }
+
+      if(card.photo){ viewPhotoImg.src = card.photo } else { viewPhotoImg.src = '' }
+
+      $('#result-title').textContent = 'Doa'
+      $('#result-text').textContent = ''
+      $('#photo-hint').textContent = 'Klik foto untuk melihat umur dan ucapan.'
+      $('#emoji').textContent = '🙂'
+
+      // photo click shows inline modal (works on mobile)
+      viewPhoto.onclick = ()=>{
+        showModal(`<div style="text-align:center"><h2>${escapeHtml(card.name)}</h2><p style='white-space:pre-line'>${escapeHtml(card.age + ' tahun
+
+' + card.message)}</p><div style='font-size:48px;margin-top:8px;cursor:pointer' id='modal-emoji'>🗿</div></div>`)
+        // bind modal emoji click
+        setTimeout(()=>{
+          const em = document.getElementById('modal-emoji')
+          if(em) em.addEventListener('click', ()=>{ hideModal(); showStep('step-emoji') })
+        },50)
+      }
+
+      $('#emoji').onclick = ()=>{ showStep('step-game') }
+
+      $$('#cards .card').forEach(c=>c.onclick = ()=>{
+        const idx = c.dataset.index
+        let text = ''
+        if(idx==='1') text = 'Semoga tambah pintar dan kritis.'
+        if(idx==='2') text = 'Semoga tambah kaya dan sukses.'
+        if(idx==='3') text = 'Semoga tambah rajin.'
+        $('#result-title').textContent = 'Doa untuk ' + card.name
+        $('#result-text').textContent = text
+        showStep('step-result')
+      })
+
+      $('#done-btn').onclick = ()=>{ alert('Selesai — terima kasih!'); location.hash = '#/card/' + (location.hash.slice(7)) }
+    }
+
+    function popBalloon(el){
+      if(el.classList.contains('popped')) return
+      el.classList.add('popped')
+      poppedCount++
+      try{
+        const ctx = new (window.AudioContext||window.webkitAudioContext)()
+        const o = ctx.createOscillator(); const g = ctx.createGain(); o.connect(g); g.connect(ctx.destination);
+        o.frequency.value = Math.random()*400 + 200
+        g.gain.value = 0.02
+        o.start(); o.stop(ctx.currentTime + 0.05)
+      }catch(e){}
+
+      const total = balloonsContainer.querySelectorAll('.balloon').length
+      if(poppedCount >= total){ runConfetti(); setTimeout(()=>{ showStep('step-photo') }, 900) }
+    }
+
+    function showStep(id){ steps.forEach(s=>$('#'+s).classList.toggle('active', s===id)) }
+
+    // Modal helpers (inline, mobile-safe)
+    function showModal(html){ const m = $('#modal'); $('#modal-content').innerHTML = html; m.style.display = 'flex' }
+    function hideModal(){ $('#modal').style.display = 'none'; $('#modal-content').innerHTML = '' }
+
+    // confetti
+    function runConfetti(){
+      const canvas = confettiCanvas
+      canvas.width = innerWidth
+      canvas.height = innerHeight
+      const ctx = canvas.getContext('2d')
+      const pieces = []
+      const colors = ['#ff7aa2','#6ec9ff','#fff58f','#8effc1']
+      for(let i=0;i<80;i++){
+        pieces.push({x: Math.random()*canvas.width, y: Math.random()*canvas.height/2, vx:(Math.random()-0.5)*6, vy:Math.random()*6+2, r:Math.random()*6+4, c: colors[Math.floor(Math.random()*colors.length)], rot:Math.random()*360, vr:(Math.random()-0.5)*10})
+      }
+      let t = 0
+      function frame(){ ctx.clearRect(0,0,canvas.width,canvas.height); for(const p of pieces){ p.x += p.vx; p.y += p.vy; p.vy += 0.12; p.rot += p.vr; ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.rot*Math.PI/180); ctx.fillStyle = p.c; ctx.fillRect(-p.r/2,-p.r/2,p.r, p.r*0.6); ctx.restore() } t += 1; if(t<120) requestAnimationFrame(frame); else ctx.clearRect(0,0,canvas.width,canvas.height) }
+      frame()
+    }
+
+    // Safe HTML escape
+    function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+
+    // base64 decode with URL-safe fallback
+    function tryDecodePayload(payload){ try{ return decodeBase64(payload) }catch(e){ // try URL-safe replace
+        const p = payload.replace(/-/g,'+').replace(/_/g,'/')
+        return decodeBase64(p)
+      }
+    }
+
+    // parse and route on load
+    parseHash()
+    updatePreview()
+
+    // Accessibility: keyboard quick save
+    window.addEventListener('keydown', (e)=>{ if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='s'){ e.preventDefault(); saveBtn.click() } })
+  </script>
+</body>
+</html>
